@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activity Selection — Greedy Algorithm Visualizer</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--panel:#0f1629;--panel2:#151d35;--border:#1e2d54;
+  --text:#d4e2ff;--muted:#5a7aaa;
+  --blue:#4d9fff;--green:#00e87c;--red:#ff4757;
+  --orange:#ffb142;--purple:#a78bfa;--cyan:#00d2ff;
+  --glow-blue:0 0 16px rgba(77,159,255,0.35);
+  --glow-green:0 0 16px rgba(0,232,124,0.35);
+  --glow-red:0 0 16px rgba(255,71,87,0.35);
+}
+body{background:var(--bg);color:var(--text);font-family:'Courier New',Courier,monospace;font-size:13px;min-height:100vh;overflow-x:hidden}
+
+/* ── HEADER ── */
+.header{
+  background:linear-gradient(90deg,#060c1f 0%,#0f1a38 50%,#060c1f 100%);
+  border-bottom:1px solid var(--border);
+  padding:12px 20px;display:flex;justify-content:space-between;align-items:center;
+}
+.header-left{display:flex;align-items:baseline;gap:12px}
+.h-algo{font-size:18px;font-weight:700;color:var(--blue);letter-spacing:1px;text-shadow:var(--glow-blue)}
+.h-sub{color:var(--muted);font-size:11px;letter-spacing:2px;text-transform:uppercase}
+.badges{display:flex;gap:8px}
+.badge{border:1px solid var(--border);border-radius:3px;padding:3px 8px;font-size:10px;color:var(--muted);letter-spacing:1px}
+.badge.hi{border-color:var(--blue);color:var(--blue)}
+
+/* ── MAIN LAYOUT ── */
+.layout{display:flex;height:calc(100vh - 49px);overflow:hidden}
+.ctrl-panel{
+  width:340px;min-width:340px;
+  background:var(--panel);border-right:1px solid var(--border);
+  overflow-y:auto;display:flex;flex-direction:column;gap:0;
+}
+.viz-panel{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:0;padding:12px;gap:10px}
+
+/* ── SECTIONS ── */
+.sec{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:10px}
+.sec-title{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.ctrl-sec{border-bottom:1px solid var(--border);padding:12px}
+
+/* ── INPUTS ── */
+textarea{
+  width:100%;background:#060c1f;border:1px solid var(--border);border-radius:3px;
+  color:var(--text);padding:7px 9px;font-family:'Courier New',monospace;font-size:11px;
+  resize:vertical;line-height:1.5;
+}
+textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 2px rgba(77,159,255,0.1)}
+.presets{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+
+/* ── BUTTONS ── */
+.btn{
+  background:#060c1f;border:1px solid var(--border);border-radius:3px;
+  color:var(--text);padding:6px 10px;font-family:'Courier New',monospace;
+  font-size:11px;cursor:pointer;transition:all .15s;letter-spacing:.5px;
+}
+.btn:hover{border-color:var(--blue);color:var(--blue);box-shadow:var(--glow-blue)}
+.btn.primary{background:rgba(77,159,255,.12);border-color:var(--blue);color:var(--blue);width:100%;margin-bottom:6px}
+.btn.primary:hover{background:rgba(77,159,255,.2)}
+.btn.play{background:rgba(0,232,124,.12);border-color:var(--green);color:var(--green)}
+.btn.play:hover{background:rgba(0,232,124,.22);box-shadow:var(--glow-green)}
+.btn.small{padding:4px 8px;font-size:10px}
+.btn-row{display:flex;gap:5px;flex-wrap:wrap}
+.btn-row .btn{flex:1;min-width:50px;text-align:center;padding:7px 4px}
+
+/* ── SPEED ── */
+.speed-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px;color:var(--muted)}
+input[type=range]{flex:1;accent-color:var(--blue);height:3px}
+
+/* ── STATUS ── */
+.status-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px}
+.status-badge{padding:2px 8px;border-radius:2px;border:1px solid;font-size:10px;letter-spacing:1px}
+.s-idle{border-color:var(--muted);color:var(--muted)}
+.s-ready{border-color:var(--blue);color:var(--blue);box-shadow:var(--glow-blue)}
+.s-playing{border-color:var(--green);color:var(--green);box-shadow:var(--glow-green);animation:pulse 1s infinite}
+.s-paused{border-color:var(--orange);color:var(--orange)}
+.s-done{border-color:var(--purple);color:var(--purple);box-shadow:0 0 12px rgba(167,139,250,.4)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{background:#060c1f;border:1px solid var(--border);border-radius:3px;padding:8px;text-align:center}
+.stat-val{font-size:20px;font-weight:700;color:var(--blue);font-family:'Courier New',monospace;line-height:1}
+.stat-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:3px}
+
+/* ── LEGEND ── */
+.legend{display:flex;flex-direction:column;gap:5px}
+.leg{display:flex;align-items:center;gap:8px;font-size:11px}
+.leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* ── GANTT ── */
+#ganttWrap{width:100%;overflow-x:auto;min-height:180px}
+
+/* ── SPLIT ── */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ── PSEUDOCODE ── */
+.ps-box{font-family:'Courier New',monospace;font-size:11px;line-height:1.8;position:relative}
+.ps-line{
+  display:flex;align-items:flex-start;padding:2px 4px;border-radius:2px;
+  cursor:default;transition:background .12s;border-left:2px solid transparent;
+  position:relative;
+}
+.ps-line:hover{background:rgba(255,255,255,.04)}
+.ps-line.hl{
+  background:rgba(77,159,255,.12) !important;
+  border-left:2px solid var(--blue);
+  box-shadow:inset 0 0 20px rgba(77,159,255,.05);
+}
+.ps-n{color:var(--muted);min-width:18px;margin-right:8px;font-size:10px;padding-top:1px;user-select:none}
+.ps-code{color:var(--text);flex:1}
+.ps-tip{
+  display:none;position:absolute;left:100%;top:0;
+  background:#060c1f;border:1px solid var(--border);border-radius:4px;
+  padding:6px 10px;font-size:10px;color:var(--muted);z-index:99;
+  width:200px;line-height:1.5;pointer-events:none;
+}
+.ps-line:hover .ps-tip{display:block}
+
+/* ── EXPLANATION ── */
+.explain-box{
+  background:#060c1f;border-left:2px solid var(--blue);
+  padding:10px 12px;font-size:12px;line-height:1.7;min-height:90px;
+  border-radius:0 3px 3px 0;color:var(--text);
+}
+.explain-box .hi{color:var(--blue);font-weight:700}
+.explain-box .ok{color:var(--green);font-weight:700}
+.explain-box .bad{color:var(--red);font-weight:700}
+
+/* ── HISTORY ── */
+.hist-wrap{max-height:180px;overflow-y:auto;border-radius:2px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead th{background:#060c1f;color:var(--muted);padding:5px 7px;text-align:left;position:sticky;top:0;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+tbody tr{border-top:1px solid #0f1629;cursor:pointer;transition:background .1s}
+tbody tr:hover{background:rgba(77,159,255,.06)}
+tbody tr.h-sel{background:rgba(0,232,124,.05)}
+tbody tr.h-rej{background:rgba(255,71,87,.05)}
+tbody tr.h-cur{outline:1px solid var(--blue)}
+td{padding:4px 7px}
+.ok-t{color:var(--green)}.bad-t{color:var(--red)}
+
+/* ── EDU SECTION ── */
+.edu-wrap{padding:12px 12px 24px;display:flex;flex-direction:column;gap:8px}
+.edu-card{background:var(--panel);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.edu-hdr{
+  padding:11px 14px;display:flex;justify-content:space-between;align-items:center;
+  cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.5px;
+  transition:background .15s;user-select:none;
+}
+.edu-hdr:hover{background:var(--panel2)}
+.edu-body{padding:14px;border-top:1px solid var(--border);display:none}
+.edu-body.open{display:block}
+.edu-p{color:var(--text);line-height:1.75;margin-bottom:10px;font-size:12px;font-family:'Courier New',monospace}
+.cg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.ci{background:#060c1f;border:1px solid var(--border);border-radius:3px;padding:8px;text-align:center}
+.ci-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.ci-v{font-size:15px;font-weight:700;color:var(--blue);margin-top:2px}
+.kc{
+  background:rgba(77,159,255,.04);border:1px solid rgba(77,159,255,.2);
+  border-radius:3px;padding:10px 12px;margin-bottom:8px;font-size:11px;line-height:1.75;
+  font-family:'Courier New',monospace;
+}
+.kc.warn{background:rgba(255,177,66,.04);border-color:rgba(255,177,66,.25)}
+.kc.good{background:rgba(0,232,124,.04);border-color:rgba(0,232,124,.2)}
+.kc.bad-k{background:rgba(255,71,87,.04);border-color:rgba(255,71,87,.2)}
+.we{background:#060c1f;border:1px solid var(--border);border-radius:3px;padding:12px;margin-top:8px}
+.we-t{border-collapse:collapse;margin:8px 0;font-size:11px}
+.we-t th,.we-t td{border:1px solid var(--border);padding:4px 10px;text-align:center}
+.we-t th{background:var(--panel2);color:var(--muted)}
+.we-ol{padding-left:16px;line-height:1.9;font-size:11px}
+.chart-leg{display:flex;gap:16px;font-size:10px;color:var(--muted);margin-top:6px}
+.gc-ctrl{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--muted);margin-bottom:8px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:980px){
+  .layout{flex-direction:column;height:auto}
+  .ctrl-panel{width:100%;min-width:unset;border-right:none;border-bottom:1px solid var(--border)}
+  .split{grid-template-columns:1fr}
+  .cg{grid-template-columns:1fr 1fr}
+  .ps-tip{left:auto;right:0;top:100%}
+}
+@media(max-width:600px){
+  .cg{grid-template-columns:1fr 1fr}
+  .badges{display:none}
+  .btn-row .btn{font-size:9px;padding:6px 2px}
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <span class="h-algo">ACTIVITY SELECTION</span>
+    <span class="h-sub">Greedy Algorithm · Visualizer</span>
+  </div>
+  <div class="badges">
+    <span class="badge">BCS 309 · Algorithms I</span>
+    <span class="badge hi">O(n log n)</span>
+    <span class="badge">Spring 2026</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ═══ LEFT: CONTROLS ═══ -->
+  <div class="ctrl-panel">
+
+    <div class="ctrl-sec">
+      <div class="sec-title">Custom Input</div>
+      <textarea id="customInput" rows="3" placeholder="s1,f1; s2,f2; ...&#10;Example: 1,4; 3,5; 0,6; 5,7"></textarea>
+      <button class="btn primary" onclick="loadCustom()">⟶ Load Input</button>
+      <div class="sec-title">Presets</div>
+      <div class="presets">
+        <button class="btn small" onclick="loadPreset(0)">Classic (11)</button>
+        <button class="btn small" onclick="loadPreset(1)">All Compatible</button>
+        <button class="btn small" onclick="loadPreset(2)">All Overlap</button>
+      </div>
+    </div>
+
+    <div class="ctrl-sec">
+      <div class="sec-title">Playback Controls</div>
+      <div class="speed-row">
+        <span>Speed: <strong id="speedLabel">1×</strong></span>
+        <input type="range" id="speedSlider" min="0" max="7" value="3" oninput="updateSpeed(this.value)">
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="buildStepsAction()" title="Pre-compute all steps">Build</button>
+        <button class="btn" onclick="stepAction()" title="Advance one step">Step</button>
+        <button class="btn play" onclick="playAction()" title="Play animation">▶ Play</button>
+        <button class="btn" onclick="pauseAction()" title="Pause">⏸</button>
+        <button class="btn" onclick="resetAction()" title="Reset">↺ Reset</button>
+      </div>
+      <div class="status-row">
+        <span style="color:var(--muted)">Step: <strong id="stepCounter" style="color:var(--text)">— / —</strong></span>
+        <span class="status-badge s-idle" id="statusBadge">IDLE</span>
+      </div>
+    </div>
+
+    <div class="ctrl-sec">
+      <div class="sec-title">Live Statistics</div>
+      <div class="stats-grid">
+        <div class="stat"><div class="stat-val" id="sComp">0</div><div class="stat-label">Comparisons</div></div>
+        <div class="stat"><div class="stat-val" id="sSwap">0</div><div class="stat-label">Swaps</div></div>
+        <div class="stat"><div class="stat-val" id="sSel" style="color:var(--green)">0</div><div class="stat-label">Selected ✓</div></div>
+        <div class="stat"><div class="stat-val" id="sRej" style="color:var(--red)">0</div><div class="stat-label">Rejected ✗</div></div>
+      </div>
+    </div>
+
+    <div class="ctrl-sec">
+      <div class="sec-title">Legend</div>
+      <div class="legend">
+        <div class="leg"><div class="leg-dot" style="background:#4d9fff"></div>Unprocessed</div>
+        <div class="leg"><div class="leg-dot" style="background:#a78bfa"></div>Being Sorted</div>
+        <div class="leg"><div class="leg-dot" style="background:#ffb142"></div>Comparing / Checking</div>
+        <div class="leg"><div class="leg-dot" style="background:#00e87c"></div>Selected ✓</div>
+        <div class="leg"><div class="leg-dot" style="background:#ff4757"></div>Rejected ✗</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ RIGHT: VISUALIZATION ═══ -->
+  <div class="viz-panel">
+
+    <div class="sec">
+      <div class="sec-title">Timeline — Gantt Chart</div>
+      <div id="ganttWrap"></div>
+    </div>
+
+    <div class="split">
+      <div class="sec">
+        <div class="sec-title">Pseudocode</div>
+        <div id="pseudocode" class="ps-box"></div>
+      </div>
+      <div class="sec">
+        <div class="sec-title">Step Explanation</div>
+        <div id="explanation" class="explain-box">Press <span class="hi">Build</span> then <span class="ok">▶ Play</span> — or use <span class="hi">Step</span> to go one step at a time.</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">Step History — click any row to jump back</div>
+      <div class="hist-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Phase</th><th>Activity</th><th>Action</th><th>Result</th></tr></thead>
+          <tbody id="histBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ EDUCATIONAL SECTIONS ═══ -->
+<div class="edu-wrap">
+
+  <div class="edu-card">
+    <div class="edu-hdr" onclick="tog('clo1')">
+      <span>📊 CLO-1 · Complexity Analysis — Why O(n log n)?</span>
+      <span id="clo1-ico">▼</span>
+    </div>
+    <div class="edu-body" id="clo1">
+      <div class="cg">
+        <div class="ci"><div class="ci-l">Best Case</div><div class="ci-v">O(n log n)</div></div>
+        <div class="ci"><div class="ci-l">Worst Case</div><div class="ci-v">O(n log n)</div></div>
+        <div class="ci"><div class="ci-l">Average</div><div class="ci-v">O(n log n)</div></div>
+        <div class="ci"><div class="ci-l">Space</div><div class="ci-v">O(n)</div></div>
+      </div>
+      <p class="edu-p">
+        The algorithm has two phases. <strong style="color:var(--purple)">Sorting</strong> by finish time costs O(n log n) — this dominates.
+        The <strong style="color:var(--blue)">Greedy loop</strong> is just O(n): one pass through the sorted list.
+        Together: O(n log n) + O(n) = <strong style="color:var(--blue)">O(n log n)</strong>.
+      </p>
+      <p class="edu-p">
+        Why is sorting O(n log n)? Any comparison-based sort needs at least log₂(n!) ≈ n·log(n) comparisons
+        to distinguish all n! orderings. Merge Sort achieves this exactly.
+      </p>
+      <div class="gc-ctrl">
+        <span>Max n = <strong id="gnVal" style="color:var(--blue)">100</strong></span>
+        <input type="range" id="growthN" min="5" max="300" value="100" oninput="drawChart()" style="accent-color:var(--blue)">
+      </div>
+      <div id="gcWrap" style="background:#060c1f;border:1px solid var(--border);border-radius:3px;padding:8px"></div>
+      <div class="chart-leg">
+        <span style="color:var(--green)">▬ O(n log n) — Activity Selection</span>
+        <span style="color:var(--red)">▬ O(n²) — Brute Force</span>
+        <span style="color:var(--blue)">▬ O(n) — Greedy loop only</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="edu-card">
+    <div class="edu-hdr" onclick="tog('clo2')">
+      <span>🔀 CLO-2 · Role of Sorting — Why Finish Time, Not Start Time?</span>
+      <span id="clo2-ico">▼</span>
+    </div>
+    <div class="edu-body" id="clo2">
+      <p class="edu-p">Sorting by <strong style="color:var(--orange)">finish time</strong> is the critical first step. Without it, the greedy algorithm can pick a long activity early and block all shorter ones.</p>
+      <button class="btn primary" style="max-width:320px;margin-bottom:12px" onclick="showFailure()">▶ Show What Happens Without Sorting</button>
+      <div id="failureDemo"></div>
+      <div class="kc warn">
+        <strong style="color:var(--orange)">⚠️ Counterexample — Sort by start time instead:</strong><br><br>
+        Activities: [1,10], [2,3], [4,5], [6,7]<br>
+        • Sort by <strong>start</strong> → greedily pick [1,10] → blocks everything → 1 selected ✗<br>
+        • Sort by <strong>finish</strong> → pick [2,3] → [4,5] → [6,7] → 3 selected ✓
+      </div>
+    </div>
+  </div>
+
+  <div class="edu-card">
+    <div class="edu-hdr" onclick="tog('clo3')">
+      <span>🧠 CLO-3 · Greedy Paradigm — Why Is It Provably Optimal?</span>
+      <span id="clo3-ico">▼</span>
+    </div>
+    <div class="edu-body" id="clo3">
+      <div class="kc good">
+        <strong style="color:var(--green)">🎯 Greedy Choice Property:</strong><br>
+        Always selecting the activity with the earliest finish time is locally optimal AND leads to a globally optimal solution. No backtracking needed — every greedy choice is safe.
+      </div>
+      <div class="kc">
+        <strong style="color:var(--blue)">🔄 Exchange Argument (Proof Sketch):</strong><br>
+        Suppose optimal solution OPT doesn't include greedy's first choice a₁ (earliest finish).
+        OPT must start with some other activity aₓ. Since f(a₁) ≤ f(aₓ), swap aₓ → a₁.
+        Everything else in OPT still fits because a₁ ends no later. So greedy is never worse.
+      </div>
+      <div class="kc">
+        <strong style="color:var(--blue)">🧩 Optimal Substructure:</strong><br>
+        After selecting a₁, the remaining problem is identical: find max compatible activities
+        starting at or after f(a₁). Each greedy step reduces the problem optimally.
+      </div>
+      <div class="kc bad-k">
+        <strong style="color:var(--red)">🔢 Greedy vs Brute Force:</strong><br><br>
+        Brute Force: check all 2ⁿ subsets → O(2ⁿ)<br>
+        Greedy: sort + one pass → O(n log n)<br><br>
+        n=20: Brute = 1,048,576 subsets. Greedy ≈ 86 operations.<br>
+        n=50: Brute = 1,125,899,906,842,624. Greedy ≈ 282 operations.
+      </div>
+    </div>
+  </div>
+
+  <div class="edu-card">
+    <div class="edu-hdr" onclick="tog('overview')">
+      <span>📖 Overview & Fully Worked Example</span>
+      <span id="overview-ico">▲</span>
+    </div>
+    <div class="edu-body open" id="overview">
+      <p class="edu-p">
+        The <strong style="color:var(--blue)">Activity Selection Problem</strong>: given n activities on a shared resource
+        (e.g. a lecture hall), each with start time sᵢ and finish time fᵢ, find the maximum
+        number of mutually compatible (non-overlapping) activities.
+        Two activities i,j are compatible if fᵢ ≤ sⱼ or fⱼ ≤ sᵢ.
+      </p>
+      <div class="we">
+        <strong style="color:var(--blue)">Fully Worked Example</strong> — 6 activities:
+        <table class="we-t" style="margin:8px 0">
+          <tr><th>Activity</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr>
+          <tr><td>Start s</td><td>1</td><td>3</td><td>0</td><td>5</td><td>8</td><td>12</td></tr>
+          <tr><td>Finish f</td><td>4</td><td>5</td><td>6</td><td>7</td><td>11</td><td>16</td></tr>
+        </table>
+        <ol class="we-ol">
+          <li>Sort by finish time: [1,4], [3,5], [0,6], [5,7], [8,11], [12,16] ← already sorted</li>
+          <li>Select activity 1 [s=1, f=4]. A = {1}, j = 1</li>
+          <li>i=2: s₂=3 ≥ f₁=4? NO → REJECT activity 2</li>
+          <li>i=3: s₃=0 ≥ f₁=4? NO → REJECT activity 3</li>
+          <li>i=4: s₄=5 ≥ f₁=4? YES → SELECT activity 4. A = {1,4}, j = 4</li>
+          <li>i=5: s₅=8 ≥ f₄=7? YES → SELECT activity 5. A = {1,4,5}, j = 5</li>
+          <li>i=6: s₆=12 ≥ f₅=11? YES → SELECT activity 6. A = {1,4,5,6}</li>
+        </ol>
+        <p style="margin-top:10px;color:var(--green);font-weight:700">✓ Result: 4 activities {1,4,5,6} — the maximum possible.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════
+const PRESETS = [
+  {acts:[{s:1,f:4},{s:3,f:5},{s:0,f:6},{s:5,f:7},{s:3,f:9},{s:5,f:9},{s:6,f:10},{s:8,f:11},{s:8,f:12},{s:2,f:14},{s:12,f:16}]},
+  {acts:[{s:0,f:1},{s:2,f:3},{s:4,f:5},{s:6,f:7},{s:8,f:9}]},
+  {acts:[{s:0,f:10},{s:1,f:9},{s:2,f:8},{s:3,f:7},{s:4,f:6}]}
+];
+const SPEEDS = [0.25,0.5,0.75,1,1.5,2,3,4];
+const PSLINES = [
+  {c:'GREEDY-ACTIVITY-SELECTOR(s, f)', t:'Function signature: takes start array s and finish array f'},
+  {c:'  n ← length[s]', t:'Step 1: Count total activities'},
+  {c:'  Sort s,f by finish time f', t:'KEY STEP: Sort by finish time. This is why we get O(n log n). Greedy only works on sorted input!'},
+  {c:'  A ← { 1 }', t:'Initialize: select activity 1 — it finishes earliest after sort'},
+  {c:'  j ← 1', t:'j = index of last selected activity (tracks where we are)'},
+  {c:'  for i ← 2 to n', t:'Examine every remaining activity in order of finish time'},
+  {c:'      if s[i] ≥ f[j]', t:'GREEDY CHECK: does activity i start after the last selected one ends?'},
+  {c:'          A ← A ∪ {i}', t:'Compatible! Add activity i to our selection set A'},
+  {c:'          j ← i', t:'Update j: activity i is now the last selected'},
+  {c:'  return A', t:'Return the set of all selected activities'}
+];
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+let acts = [], steps = [], curStep = -1;
+let playing = false, timer = null, speed = 1;
+
+// ════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+initPS();
+loadPreset(0);
+drawChart();
+
+function loadPreset(i) {
+  acts = PRESETS[i].acts.map((a,j) => ({...a, id:j+1}));
+  document.getElementById('customInput').value = acts.map(a=>`${a.s},${a.f}`).join('; ');
+  resetAction();
+  drawInitGantt();
+}
+
+function loadCustom() {
+  const raw = document.getElementById('customInput').value.trim();
+  try {
+    const p = raw.split(';').map(x=>x.trim()).filter(Boolean).map((x,i)=>{
+      const [s,f] = x.split(',').map(Number);
+      if(isNaN(s)||isNaN(f)||f<=s) throw '';
+      return {s,f,id:i+1};
+    });
+    if(p.length < 2) throw '';
+    acts = p;
+    resetAction();
+    drawInitGantt();
+  } catch(e) {
+    alert('Invalid format!\nUse: "s1,f1; s2,f2; ..."\nFinish time must be > start time.\nNeed at least 2 activities.');
+  }
+}
+
+function initPS() {
+  document.getElementById('pseudocode').innerHTML = PSLINES.map((l,i)=>`
+    <div class="ps-line" id="pl${i}">
+      <span class="ps-n">${i===0?'':i}</span>
+      <span class="ps-code">${esc(l.c)}</span>
+      <div class="ps-tip">${esc(l.t)}</div>
+    </div>`).join('');
+}
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ════════════════════════════════════════
+// BUILD STEPS
+// ════════════════════════════════════════
+function buildStepsAction() {
+  pauseAction();
+  steps = [];
+  document.getElementById('histBody').innerHTML = '';
+  let st = {comparisons:0,swaps:0,selected:0,rejected:0};
+  let arr = acts.map(a=>({...a,state:'idle'}));
+
+  // Step 0 – init
+  push(arr,2,`<span class="hi">n = ${arr.length}</span> activities loaded.`,
+    'Init','—','Start','—',cp(st));
+
+  // ── BUBBLE SORT ──
+  for(let i=0;i<arr.length-1;i++){
+    for(let j=0;j<arr.length-1-i;j++){
+      st.comparisons++;
+      arr[j].state='sorting'; arr[j+1].state='sorting';
+      const sw = arr[j].f > arr[j+1].f;
+      push(arr,3,
+        `Sorting: Compare A${arr[j].id}(f=<span class="hi">${arr[j].f}</span>) vs A${arr[j+1].id}(f=<span class="hi">${arr[j+1].f}</span>). ${sw?`<span class="bad">${arr[j].f} &gt; ${arr[j+1].f} → SWAP</span>`:`<span class="ok">${arr[j].f} ≤ ${arr[j+1].f} → OK</span>`}`,
+        'Sort',`A${arr[j].id},A${arr[j+1].id}`,
+        sw?`Compare → Swap`:`Compare → OK`,
+        sw?'↔ Swap':'✓ OK',cp(st));
+      if(sw){
+        [arr[j],arr[j+1]]=[arr[j+1],arr[j]];
+        st.swaps++;
+        arr[j].state='sorting'; arr[j+1].state='sorting';
+        push(arr,3,
+          `Swapped! A${arr[j].id}(f=${arr[j].f}) now before A${arr[j+1].id}(f=${arr[j+1].f})`,
+          'Sort',`A${arr[j].id}↔A${arr[j+1].id}`,'Swap','↔ Swapped',cp(st));
+      }
+      arr[j].state='idle'; arr[j+1].state='idle';
+    }
+  }
+  arr.forEach(a=>a.state='idle');
+  push(arr,3,
+    `<span class="ok">Sort complete!</span> Order by finish time: [${arr.map(a=>`A${a.id}(${a.f})`).join(' → ')}]`,
+    'Sort',arr.map(a=>`A${a.id}`).join(','),'Sort done','✓ Sorted',cp(st));
+
+  // ── GREEDY ──
+  arr[0].state='selected'; st.selected++;
+  let j=0; const selIds=[arr[0].id];
+  push(arr,4,
+    `Initialize: Select <span class="ok">A${arr[0].id}</span> [s=${arr[0].s}, f=${arr[0].f}] — earliest finish. A = {${arr[0].id}}`,
+    'Greedy',`A${arr[0].id}`,'Select first','✓ Selected',cp(st));
+  push(arr,5,
+    `Set j = 1. j tracks last selected: <span class="hi">A${arr[0].id}</span> (finish = ${arr[0].f})`,
+    'Greedy',`A${arr[0].id}`,'j ← 1',`j=1`,cp(st));
+
+  for(let i=1;i<arr.length;i++){
+    push(arr,6,
+      `Loop i = ${i+1}: examining <span class="hi">A${arr[i].id}</span> [s=${arr[i].s}, f=${arr[i].f}]`,
+      'Greedy',`A${arr[i].id}`,`i = ${i+1}`,'...',cp(st));
+
+    st.comparisons++;
+    arr[i].state='comparing';
+    const ok = arr[i].s >= arr[j].f;
+    push(arr,7,
+      `Check: s[A${arr[i].id}] = <span class="hi">${arr[i].s}</span> ≥ f[A${arr[j].id}] = <span class="hi">${arr[j].f}</span>? → ${ok?`<span class="ok">YES ✓ Compatible!</span>`:`<span class="bad">NO ✗ Conflict!</span>`}`,
+      'Greedy',`A${arr[i].id}`,
+      `s=${arr[i].s} ≥ f=${arr[j].f}?`,
+      ok?'YES ✓':'NO ✗',cp(st));
+
+    if(ok){
+      arr[i].state='selected'; st.selected++;
+      selIds.push(arr[i].id);
+      const pj=j; j=i;
+      push(arr,8,
+        `<span class="ok">ACCEPT!</span> A${arr[i].id} [s=${arr[i].s}, f=${arr[i].f}] starts after A${arr[pj].id} ends. A = {${selIds.join(', ')}}`,
+        'Greedy',`A${arr[i].id}`,'Add to A ✓','✓ Selected',cp(st));
+      push(arr,9,
+        `Update j ← ${i+1}. Now j points to <span class="hi">A${arr[i].id}</span> (finish = ${arr[i].f})`,
+        'Greedy',`A${arr[i].id}`,`j ← ${i+1}`,`j=${i+1}`,cp(st));
+    } else {
+      arr[i].state='rejected'; st.rejected++;
+      push(arr,7,
+        `<span class="bad">REJECT!</span> A${arr[i].id} starts at ${arr[i].s} but A${arr[j].id} ends at ${arr[j].f}. Overlap → skip.`,
+        'Greedy',`A${arr[i].id}`,'Skip ✗','✗ Rejected',cp(st));
+    }
+  }
+  push(arr,10,
+    `<span class="ok">✓ DONE!</span> Selected <span class="ok">${st.selected}</span> activities: {${selIds.join(', ')}}. Total comparisons: ${st.comparisons}. Swaps: ${st.swaps}.`,
+    'Done',selIds.join(', '),'Return A',`${st.selected} selected`,cp(st));
+
+  curStep=0; render(0); updUI(); setStatus('READY');
+}
+
+function push(arr,line,expl,phase,activity,action,result,st){
+  steps.push({arr:arr.map(a=>({...a})),line,expl,phase,activity,action,result,st});
+}
+function cp(s){return {...s}}
+
+// ════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════
+function render(idx){
+  if(idx<0||idx>=steps.length) return;
+  const s=steps[idx];
+  document.getElementById('sComp').textContent=s.st.comparisons;
+  document.getElementById('sSwap').textContent=s.st.swaps;
+  document.getElementById('sSel').textContent=s.st.selected;
+  document.getElementById('sRej').textContent=s.st.rejected;
+  drawGantt(s.arr);
+  hlLine(s.line);
+  document.getElementById('explanation').innerHTML=s.expl;
+  addHist(idx,s);
+}
+
+function drawGantt(arr){
+  const wrap=document.getElementById('ganttWrap');
+  const W=wrap.clientWidth||600;
+  const n=arr.length;
+  const rowH=Math.min(30,(200-32)/n);
+  const H=n*rowH+32+8;
+  const pL=42,pR=16,pT=10,pB=24;
+  const cW=W-pL-pR,cH=H-pT-pB;
+  const maxT=Math.max(...arr.map(a=>a.f))+1;
+  const xs=t=>pL+t/maxT*cW;
+  const COLS={idle:'#4d9fff',sorting:'#a78bfa',comparing:'#ffb142',selected:'#00e87c',rejected:'#ff4757'};
+  const tick=Math.max(1,Math.ceil(maxT/10));
+  let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">`;
+  s+=`<rect width="${W}" height="${H}" fill="#060c1f"/>`;
+  // grid
+  for(let t=0;t<=maxT;t+=tick){
+    const x=xs(t);
+    s+=`<line x1="${x}" y1="${pT}" x2="${x}" y2="${H-pB}" stroke="#1e2d54" stroke-width="1"/>`;
+    s+=`<text x="${x}" y="${H-pB+13}" text-anchor="middle" fill="#5a7aaa" font-size="9" font-family="Courier New">${t}</text>`;
+  }
+  s+=`<line x1="${pL}" y1="${H-pB}" x2="${W-pR}" y2="${H-pB}" stroke="#1e2d54" stroke-width="1"/>`;
+  s+=`<text x="${W/2}" y="${H}" text-anchor="middle" fill="#5a7aaa" font-size="9" font-family="Courier New">Time</text>`;
+  // bars
+  arr.forEach((a,i)=>{
+    const x=xs(a.s), bw=Math.max(4,xs(a.f)-xs(a.s));
+    const y=pT+i*rowH+2, bh=rowH-4;
+    const col=COLS[a.state]||COLS.idle;
+    const op=a.state==='rejected'?0.28:0.88;
+    // activity label left
+    s+=`<text x="${pL-4}" y="${y+bh/2+4}" text-anchor="end" fill="#5a7aaa" font-size="9" font-family="Courier New">A${a.id}</text>`;
+    // glow for selected
+    if(a.state==='selected') s+=`<rect x="${x-1}" y="${y-1}" width="${bw+2}" height="${bh+2}" rx="4" fill="${col}" opacity="0.15"/>`;
+    // bar
+    s+=`<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="2" fill="${col}" opacity="${op}"/>`;
+    // strikethrough for rejected
+    if(a.state==='rejected') s+=`<line x1="${x}" y1="${y+bh/2}" x2="${x+bw}" y2="${y+bh/2}" stroke="${col}" stroke-width="1.5" opacity="0.7"/>`;
+    // start/finish tiny labels
+    s+=`<text x="${x+1}" y="${y-1}" fill="${col}" font-size="7.5" font-family="Courier New" opacity="0.7">${a.s}</text>`;
+    s+=`<text x="${x+bw-1}" y="${y-1}" text-anchor="end" fill="${col}" font-size="7.5" font-family="Courier New" opacity="0.7">${a.f}</text>`;
+    // id inside bar if wide enough
+    if(bw>18) s+=`<text x="${x+bw/2}" y="${y+bh/2+4}" text-anchor="middle" fill="white" font-size="10" font-weight="bold" font-family="Courier New">${a.id}</text>`;
+  });
+  s+='</svg>';
+  wrap.innerHTML=s;
+}
+
+function drawInitGantt(){
+  if(!acts.length) return;
+  drawGantt(acts.map(a=>({...a,state:'idle'})));
+}
+
+function hlLine(n){
+  document.querySelectorAll('.ps-line').forEach(e=>e.classList.remove('hl'));
+  if(n>=0&&n<PSLINES.length){
+    const el=document.getElementById('pl'+n);
+    if(el){ el.classList.add('hl'); el.scrollIntoView({block:'nearest',behavior:'smooth'}); }
+  }
+}
+
+function addHist(idx,step){
+  const tb=document.getElementById('histBody');
+  document.querySelectorAll('#histBody tr').forEach(r=>r.classList.remove('h-cur'));
+  const exist=document.getElementById('hr'+idx);
+  if(exist){ exist.classList.add('h-cur'); exist.scrollIntoView({block:'nearest'}); return; }
+  while(tb.children.length>=30) tb.removeChild(tb.firstChild);
+  const isSel=step.result&&step.result.includes('✓');
+  const isRej=step.result&&step.result.includes('✗');
+  const tr=document.createElement('tr');
+  tr.id='hr'+idx;
+  tr.className=(isSel?'h-sel':isRej?'h-rej':'')+' h-cur';
+  tr.innerHTML=`<td>${idx+1}</td><td>${step.phase}</td><td>${step.activity||'—'}</td><td>${step.action}</td><td class="${isSel?'ok-t':isRej?'bad-t':''}">${step.result||'—'}</td>`;
+  tr.onclick=()=>jumpTo(idx);
+  tb.appendChild(tr);
+  tr.scrollIntoView({block:'nearest'});
+}
+
+function jumpTo(i){
+  if(i<0||i>=steps.length) return;
+  pauseAction(); curStep=i; render(i); updUI(); setStatus('PAUSED');
+}
+
+// ════════════════════════════════════════
+// PLAYBACK
+// ════════════════════════════════════════
+function stepAction(){
+  if(!steps.length){ buildStepsAction(); return; }
+  pauseAction();
+  if(curStep<steps.length-1){ curStep++; render(curStep); updUI(); }
+  setStatus(curStep>=steps.length-1?'DONE':'PAUSED');
+}
+
+function playAction(){
+  if(!steps.length){ buildStepsAction(); }
+  if(curStep>=steps.length-1) curStep=0;
+  playing=true; setStatus('PLAYING'); loop();
+}
+
+function loop(){
+  if(!playing||curStep>=steps.length-1){ if(curStep>=steps.length-1) setStatus('DONE'); playing=false; return; }
+  curStep++; render(curStep); updUI();
+  timer=setTimeout(loop,600/speed);
+}
+
+function pauseAction(){
+  playing=false; clearTimeout(timer);
+  if(steps.length&&curStep>=0) setStatus('PAUSED');
+  else setStatus('IDLE');
+}
+
+function resetAction(){
+  pauseAction(); steps=[]; curStep=-1;
+  document.getElementById('histBody').innerHTML='';
+  document.getElementById('explanation').innerHTML='Press <span class="hi">Build</span> then <span class="ok">▶ Play</span> — or use <span class="hi">Step</span> to go one step at a time.';
+  ['sComp','sSwap','sSel','sRej'].forEach(id=>document.getElementById(id).textContent='0');
+  document.querySelectorAll('.ps-line').forEach(e=>e.classList.remove('hl'));
+  setStatus('IDLE'); updUI();
+  drawInitGantt();
+}
+
+function updateSpeed(v){
+  speed=SPEEDS[+v];
+  document.getElementById('speedLabel').textContent=speed+'×';
+}
+
+function updUI(){
+  const tot=steps.length;
+  document.getElementById('stepCounter').textContent=`${curStep>=0?curStep+1:'—'} / ${tot||'—'}`;
+}
+
+function setStatus(s){
+  const el=document.getElementById('statusBadge');
+  el.textContent=s;
+  el.className='status-badge s-'+s.toLowerCase();
+}
+
+// ════════════════════════════════════════
+// GROWTH CHART
+// ════════════════════════════════════════
+function drawChart(){
+  const slider=document.getElementById('growthN');
+  const maxN=+slider.value;
+  document.getElementById('gnVal').textContent=maxN;
+  const wrap=document.getElementById('gcWrap');
+  const W=wrap.clientWidth-16||560;
+  const H=200, pL=44,pR=16,pT=12,pB=28;
+  const cW=W-pL-pR, cH=H-pT-pB;
+  const nln=n=>n*Math.log2(Math.max(n,2));
+  const n2=n=>n*n;
+  const n1=n=>n;
+  const MX=n2(maxN)||1;
+  const px=n=>pL+(n/maxN)*cW;
+  const py=v=>pT+cH-Math.min(cH,(v/MX)*cH);
+  const steps2=60;
+  let pA='',pB2='',pC='';
+  for(let i=0;i<=steps2;i++){
+    const n=Math.max(1,i*maxN/steps2);
+    const x=px(n).toFixed(1);
+    pA+=(i?'L':'M')+x+','+py(nln(n)).toFixed(1)+' ';
+    pB2+=(i?'L':'M')+x+','+py(n2(n)).toFixed(1)+' ';
+    pC+=(i?'L':'M')+x+','+py(n1(n)).toFixed(1)+' ';
+  }
+  let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">`;
+  s+=`<rect width="${W}" height="${H}" fill="#060c1f"/>`;
+  for(let i=0;i<=4;i++){
+    const y=pT+(cH/4)*i;
+    s+=`<line x1="${pL}" y1="${y}" x2="${W-pR}" y2="${y}" stroke="#1e2d54" stroke-width="1"/>`;
+    const v=MX*(1-i/4);
+    s+=`<text x="${pL-4}" y="${y+4}" text-anchor="end" fill="#5a7aaa" font-size="9" font-family="Courier New">${v>9999?(v/1000).toFixed(0)+'k':v.toFixed(0)}</text>`;
+  }
+  for(let i=0;i<=4;i++){
+    const n=(maxN/4)*i, x=px(n);
+    s+=`<text x="${x}" y="${H-pB+14}" text-anchor="middle" fill="#5a7aaa" font-size="9" font-family="Courier New">${n.toFixed(0)}</text>`;
+  }
+  s+=`<line x1="${pL}" y1="${pT}" x2="${pL}" y2="${H-pB}" stroke="#1e2d54" stroke-width="1"/>`;
+  s+=`<line x1="${pL}" y1="${H-pB}" x2="${W-pR}" y2="${H-pB}" stroke="#1e2d54" stroke-width="1"/>`;
+  s+=`<text x="${W/2}" y="${H}" text-anchor="middle" fill="#5a7aaa" font-size="9" font-family="Courier New">n (input size)</text>`;
+  s+=`<path d="${pB2}" stroke="#ff4757" stroke-width="1.5" fill="none" opacity=".8"/>`;
+  s+=`<path d="${pA}" stroke="#00e87c" stroke-width="2" fill="none"/>`;
+  s+=`<path d="${pC}" stroke="#4d9fff" stroke-width="1.5" fill="none" opacity=".8"/>`;
+  // labels
+  const ex=px(maxN);
+  s+=`<text x="${ex-2}" y="${Math.max(pT+10,py(n2(maxN)))}" fill="#ff4757" font-size="8" text-anchor="end" font-family="Courier New">O(n²)</text>`;
+  s+=`<text x="${ex-2}" y="${Math.max(pT+20,py(nln(maxN)))}" fill="#00e87c" font-size="8" text-anchor="end" font-family="Courier New">O(n log n)</text>`;
+  s+=`<text x="${ex-2}" y="${Math.max(pT+30,py(n1(maxN)))}" fill="#4d9fff" font-size="8" text-anchor="end" font-family="Courier New">O(n)</text>`;
+  s+='</svg>';
+  wrap.innerHTML=s;
+}
+
+// ════════════════════════════════════════
+// CLO-2 FAILURE DEMO
+// ════════════════════════════════════════
+function showFailure(){
+  // Hardcoded counterexample where unsorted fails clearly
+  const demo=[{s:1,f:10,id:'X'},{s:2,f:3,id:'A'},{s:4,f:5,id:'B'},{s:6,f:7,id:'C'}];
+  // Unsorted greedy (original order)
+  const u=greedyRaw(demo);
+  // Sorted greedy
+  const sorted=[...demo].sort((a,b)=>a.f-b.f);
+  const srt=greedyRaw(sorted);
+  const div=document.getElementById('failureDemo');
+  div.innerHTML=`
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px;font-family:'Courier New',monospace">
+      Demo input: [s=1,f=10], [s=2,f=3], [s=4,f=5], [s=6,f=7]
+    </p>
+    <div class="kc bad-k">
+      <strong style="color:var(--red)">✗ Without sorting (original order):</strong><br>
+      Greedy picks [s=1,f=10] first — a long activity that blocks everything else.<br>
+      Result: only <strong>${u.length} activity</strong> selected: {${u.join(', ')}}
+    </div>
+    <div class="kc good" style="margin-top:8px">
+      <strong style="color:var(--green)">✓ With sorting by finish time:</strong><br>
+      Sort → [s=2,f=3],[s=4,f=5],[s=6,f=7],[s=1,f=10]. Pick shortest-ending first.<br>
+      Result: <strong>${srt.length} activities</strong> selected: {${srt.join(', ')}} — ${srt.length}× more!
+    </div>`;
+}
+
+function greedyRaw(arr){
+  const sel=[arr[0].id]; let lf=arr[0].f;
+  for(let i=1;i<arr.length;i++) if(arr[i].s>=lf){sel.push(arr[i].id);lf=arr[i].f;}
+  return sel;
+}
+
+// ════════════════════════════════════════
+// EDU TOGGLES
+// ════════════════════════════════════════
+function tog(id){
+  const b=document.getElementById(id), ic=document.getElementById(id+'-ico');
+  b.classList.toggle('open');
+  ic.textContent=b.classList.contains('open')?'▲':'▼';
+  if(id==='clo1'&&b.classList.contains('open')) setTimeout(drawChart,60);
+}
+
+// ════════════════════════════════════════
+// RESIZE
+// ════════════════════════════════════════
+window.addEventListener('resize',()=>{
+  if(curStep>=0&&steps.length) drawGantt(steps[curStep].arr);
+  else drawInitGantt();
+  if(document.getElementById('clo1').classList.contains('open')) drawChart();
+});
+</script>
+</body>
+</html>
