@@ -506,32 +506,61 @@ function buildStepsAction() {
   push(arr,2,`<span class="hi">n = ${arr.length}</span> activities loaded.`,
     'Init','—','Start','—',cp(st));
 
-  // ── BUBBLE SORT ──
-  for(let i=0;i<arr.length-1;i++){
-    for(let j=0;j<arr.length-1-i;j++){
-      st.comparisons++;
-      arr[j].state='sorting'; arr[j+1].state='sorting';
-      const sw = arr[j].f > arr[j+1].f;
-      push(arr,3,
-        `Sorting: Compare A${arr[j].id}(f=<span class="hi">${arr[j].f}</span>) vs A${arr[j+1].id}(f=<span class="hi">${arr[j+1].f}</span>). ${sw?`<span class="bad">${arr[j].f} &gt; ${arr[j+1].f} → SWAP</span>`:`<span class="ok">${arr[j].f} ≤ ${arr[j+1].f} → OK</span>`}`,
-        'Sort',`A${arr[j].id},A${arr[j+1].id}`,
-        sw?`Compare → Swap`:`Compare → OK`,
-        sw?'↔ Swap':'✓ OK',cp(st));
-      if(sw){
-        [arr[j],arr[j+1]]=[arr[j+1],arr[j]];
-        st.swaps++;
-        arr[j].state='sorting'; arr[j+1].state='sorting';
-        push(arr,3,
-          `Swapped! A${arr[j].id}(f=${arr[j].f}) now before A${arr[j+1].id}(f=${arr[j+1].f})`,
-          'Sort',`A${arr[j].id}↔A${arr[j+1].id}`,'Swap','↔ Swapped',cp(st));
-      }
-      arr[j].state='idle'; arr[j+1].state='idle';
-    }
+  // ── MERGE SORT (step-recording) ──
+  // Recursive merge sort that pushes animation steps at each compare & merge
+  function mergeSort(lo, hi) {
+    if (hi - lo < 1) return; // base case: single element
+    const mid = Math.floor((lo + hi) / 2);
+    // Show splitting step
+    push(arr, 3,
+      `<span class="hi">Merge Sort:</span> Splitting [${arr.slice(lo,hi+1).map(a=>`A${a.id}`).join(',')}] → [${arr.slice(lo,mid+1).map(a=>`A${a.id}`).join(',')}] | [${arr.slice(mid+1,hi+1).map(a=>`A${a.id}`).join(',')}]`,
+      'Sort', arr.slice(lo,hi+1).map(a=>`A${a.id}`).join(','), `Split [${lo}..${hi}]`, 'Splitting', cp(st));
+    mergeSort(lo, mid);
+    mergeSort(mid + 1, hi);
+    merge(lo, mid, hi);
   }
-  arr.forEach(a=>a.state='idle');
-  push(arr,3,
-    `<span class="ok">Sort complete!</span> Order by finish time: [${arr.map(a=>`A${a.id}(${a.f})`).join(' → ')}]`,
-    'Sort',arr.map(a=>`A${a.id}`).join(','),'Sort done','✓ Sorted',cp(st));
+
+  function merge(lo, mid, hi) {
+    const left  = arr.slice(lo, mid + 1);
+    const right = arr.slice(mid + 1, hi + 1);
+    // Highlight the two halves being merged
+    for (let k = lo; k <= hi; k++) arr[k].state = 'sorting';
+    push(arr, 3,
+      `<span class="hi">Merge:</span> Merging left [${left.map(a=>`A${a.id}(f=${a.f})`).join(', ')}] with right [${right.map(a=>`A${a.id}(f=${a.f})`).join(', ')}]`,
+      'Sort', `[${lo}..${mid}] + [${mid+1}..${hi}]`, 'Merge', 'Merging…', cp(st));
+    let i = 0, j = 0, k = lo;
+    while (i < left.length && j < right.length) {
+      st.comparisons++;
+      const lv = left[i].f, rv = right[j].f;
+      const takeLeft = lv <= rv;
+      // highlight the two being compared
+      arr.forEach((a,idx)=>a.state = (idx===lo+i||idx===mid+1+j)?'comparing':'sorting');
+      push(arr, 3,
+        `Compare A${left[i].id}(f=<span class="hi">${lv}</span>) vs A${right[j].id}(f=<span class="hi">${rv}</span>) → <span class="${takeLeft?'ok':'bad'}">${takeLeft?`${lv} ≤ ${rv} → take left A${left[i].id}`:`${lv} &gt; ${rv} → take right A${right[j].id}`}</span>`,
+        'Sort', `A${left[i].id} vs A${right[j].id}`,
+        `f=${lv} vs f=${rv}`,
+        takeLeft ? '← Left' : 'Right →', cp(st));
+      if (takeLeft) { arr[k] = {...left[i]}; i++; }
+      else          { arr[k] = {...right[j]}; j++; st.swaps++; }
+      arr[k].state = 'sorting';
+      k++;
+    }
+    while (i < left.length) { arr[k++] = {...left[i++]}; }
+    while (j < right.length){ arr[k++] = {...right[j++]}; }
+    for (let x = lo; x <= hi; x++) arr[x].state = 'idle';
+    push(arr, 3,
+      `<span class="ok">Merged!</span> Segment [${lo}..${hi}] now sorted: [${arr.slice(lo,hi+1).map(a=>`A${a.id}(f=${a.f})`).join(' → ')}]`,
+      'Sort', arr.slice(lo,hi+1).map(a=>`A${a.id}`).join(','), `Merged [${lo}..${hi}]`, '✓ Merged', cp(st));
+  }
+
+  push(arr, 3,
+    `<span class="hi">Phase 1 — Merge Sort</span> by finish time. Recursively split into halves, compare, and merge back. This is what gives us <span class="ok">O(n log n)</span>.`,
+    'Sort', 'All', 'Begin Merge Sort', '…', cp(st));
+  mergeSort(0, arr.length - 1);
+  arr.forEach(a => a.state = 'idle');
+  push(arr, 3,
+    `<span class="ok">✓ Sort complete!</span> Order by finish time: [${arr.map(a=>`A${a.id}(f=${a.f})`).join(' → ')}]`,
+    'Sort', arr.map(a=>`A${a.id}`).join(','), 'Sort done', '✓ Sorted', cp(st));
 
   // ── GREEDY ──
   arr[0].state='selected'; st.selected++;
