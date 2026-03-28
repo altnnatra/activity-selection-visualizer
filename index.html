@@ -113,7 +113,7 @@ input[type=range]{flex:1;accent-color:var(--blue);height:3px}
   box-shadow:inset 0 0 20px rgba(77,159,255,.05);
 }
 .ps-n{color:var(--muted);min-width:18px;margin-right:8px;font-size:10px;padding-top:1px;user-select:none}
-.ps-code{color:var(--text);flex:1}
+.ps-code{color:var(--text);flex:1;white-space:pre}
 .ps-tip{
   display:none;position:absolute;left:100%;top:0;
   background:#060c1f;border:1px solid var(--border);border-radius:4px;
@@ -433,16 +433,16 @@ const PRESETS = [
 ];
 const SPEEDS = [0.25,0.5,0.75,1,1.5,2,3,4];
 const PSLINES = [
-  {c:'GREEDY-ACTIVITY-SELECTOR(s, f)', t:'Function signature: takes start array s and finish array f'},
-  {c:'  n ← length[s]', t:'Step 1: Count total activities'},
-  {c:'  Sort s,f by finish time f', t:'KEY STEP: Sort by finish time. This is why we get O(n log n). Greedy only works on sorted input!'},
-  {c:'  A ← { 1 }', t:'Initialize: select activity 1 — it finishes earliest after sort'},
-  {c:'  j ← 1', t:'j = index of last selected activity (tracks where we are)'},
-  {c:'  for i ← 2 to n', t:'Examine every remaining activity in order of finish time'},
-  {c:'      if s[i] ≥ f[j]', t:'GREEDY CHECK: does activity i start after the last selected one ends?'},
-  {c:'          A ← A ∪ {i}', t:'Compatible! Add activity i to our selection set A'},
-  {c:'          j ← i', t:'Update j: activity i is now the last selected'},
-  {c:'  return A', t:'Return the set of all selected activities'}
+  {c:'GREEDY-ACTIVITY-SELECTOR(s, f)',   t:'Function signature: takes start array s and finish array f'},
+  {c:'1  n \u2190 length[s]',            t:'Count total number of activities'},
+  {c:'2  Merge-Sort(s, f) by f',         t:'KEY STEP: sort by finish time — O(n log n). Greedy fails on unsorted input!'},
+  {c:'3  A \u2190 {1}',                  t:'Select activity 1 first — after sorting it has the earliest finish time'},
+  {c:'4  j \u2190 1',                    t:'j = index of last selected activity. Tracks compatibility for the next check'},
+  {c:'5  for i \u2190 2 to n',           t:'Scan every remaining activity in finish-time order'},
+  {c:'6      do if s\u1D62 \u2265 f\u2C7C', t:'GREEDY CHECK: does activity i start after activity j ends? If yes, they are compatible'},
+  {c:'7              then A \u2190 A \u222A {i}', t:'Compatible! Add activity i to result set A'},
+  {c:'8                   j \u2190 i',   t:'i is now the last selected activity — update j'},
+  {c:'9  return A',                       t:'Return A: the maximum set of compatible activities'}
 ];
 
 // ════════════════════════════════════════
@@ -485,7 +485,6 @@ function loadCustom() {
 function initPS() {
   document.getElementById('pseudocode').innerHTML = PSLINES.map((l,i)=>`
     <div class="ps-line" id="pl${i}">
-      <span class="ps-n">${i===0?'':i}</span>
       <span class="ps-code">${esc(l.c)}</span>
       <div class="ps-tip">${esc(l.t)}</div>
     </div>`).join('');
